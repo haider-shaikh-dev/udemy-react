@@ -36,6 +36,9 @@ class SinglePost extends Component {
   }
 
   render() {
+
+  console.log('test4 - ',this.state)
+
     return (
       <section className="single-post">
         <h1>{this.state.title}</h1>
@@ -43,7 +46,12 @@ class SinglePost extends Component {
           Created by {this.state.author} on {this.state.date}
         </h2>
         <div className="single-post__image">
+        <p>{this.state.image}</p>
+          {/* @TODO check url path as its being converted to octal values
+            string can be used instead of numbers while uploading images, for temp fix.
+           */}
           <Image contain imageUrl={this.state.image} />
+
         </div>
         <p>{this.state.content}</p>
       </section>
