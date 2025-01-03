@@ -22,7 +22,6 @@ class Feed extends Component {
   };
 
   componentDidMount() {
-
     const graphqlQuery = {
       query: `
         {
@@ -71,8 +70,8 @@ class Feed extends Component {
     }
     const graphqlQuery = {
       query: `
-        {
-          posts(page: ${page}) {
+        query FetchPosts($page: Int) {
+          posts(page: $page) {
             posts {
               _id
               title
@@ -87,6 +86,7 @@ class Feed extends Component {
           }
         }
       `,
+      variabele: { page: page },
     };
     fetch("http://localhost:8080/graphql", {
       method: "POST",
@@ -121,12 +121,15 @@ class Feed extends Component {
     event.preventDefault();
     const graphqlQuery = {
       query: `
-      mutation {
-            updateStatus(status: "${this.state.status}") {
+      mutation UpdateUserStatus($userStatus: String!) {
+            updateStatus(status: $userStatus) {
               status
             }
           }
       `,
+      variables: {
+        userStatus: this.state.status,
+      },
     };
 
     fetch("http://localhost:8080/graphql", {
@@ -189,31 +192,36 @@ class Feed extends Component {
     })
       .then((res) => res.json())
       .then((fileResData) => {
-        const imageUrl = fileResData.filePath;
+        const imageUrl = fileResData.filePath || "undefined";
 
+        //  mutation UpdateUserStatus($userStatus: String!)
         let graphqlQuery = {
-          query: `{
-            mutation {
-              createPost(postInput: {title: "${postData.title}", content: "${postData.content}", imageUrl: "${imageUrl}"}) {
-                _id
-                title
-                content
-                imageUrl
-                creator {
-                  name
-                }
-                createdAt
+          query: `
+          mutation CreateNewPost($title: String!, $content: String!, $imageUrl: String!){
+            createPost(postInput: {title: $title, content: $content
+          }", imageUrl: $imageUrl}) {
+              _id
+              title
+              content
+              imageUrl
+              creator {
+                name
               }
+              createdAt
             }
-        }
-          `,
+          }`,
+          variables: {
+            title: postData.title,
+            content: postData.content,
+            imgeUrl: imageUrl,
+          },
         };
 
         if (this.state.editPost) {
           graphqlQuery = {
             query: `
-              mutation {
-                updatePost(id:"${this.state.editPost._id}",postInput: {title: "${postData.title}", content: "${postData.content}", imageUrl: "${imageUrl}"}) {
+              mutation UpdatingExistingPost($postId: ID!,$title: String!, $content: String!, $imageUrl: String! ) {
+                updatePost(id: $postId,postInput: {title: $title, content: $content, imageUrl: $imageUrl}) {
                   _id
                   title
                   content
@@ -225,6 +233,12 @@ class Feed extends Component {
                 }
               }
             `,
+            variabbles: {
+              postId: this.state.editPost._id,
+              title: postData.title,
+              content: postData.content,
+              imageUrl: imageUrl,
+            },
           };
         }
 
@@ -241,12 +255,10 @@ class Feed extends Component {
       })
       .then((resData) => {
         if (resData.errors && resData.errors[0].status === 422) {
-          throw new Error(
-            "Validation failed. Make sure the email address isn't used yet!"
-          );
+          throw new Error("Validation failed. white creating a post!");
         }
         if (resData.errors) {
-          throw new Error("User login failed!");
+          throw new Error("Creating post failed!");
         }
         const post = {
           _id: resData.data.createPost._id,
@@ -257,6 +269,7 @@ class Feed extends Component {
           imagePath: resData.data.createPost.imageUrl,
         };
         this.setState((prevState) => {
+          let updatedTotalPosts = prevState.totalPosts;
           let updatedPosts = [...prevState.posts];
           if (prevState.editPost) {
             const postIndex = prevState.posts.findIndex(
@@ -264,6 +277,7 @@ class Feed extends Component {
             );
             updatedPosts[postIndex] = post;
           } else {
+            updatedTotalPosts++;
             updatedPosts.pop();
             updatedPosts.unshift(post);
           }
@@ -272,6 +286,7 @@ class Feed extends Component {
             isEditing: false,
             editPost: null,
             editLoading: false,
+            totalPosts: updatedTotalPosts,
           };
         });
       })
@@ -313,7 +328,6 @@ class Feed extends Component {
         return res.json();
       })
       .then((resData) => {
-
         if (resData.errors) {
           throw new Error("Deleting posts failed!");
         }

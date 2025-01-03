@@ -17,17 +17,20 @@ class SinglePost extends Component {
 
     const graphqlQuery = {
       query: `
-     {
-       post(id:"${postId}"){
-        title
-        content
-        imageUrl
-        creator{
-          name
-        }
-        createdAt
-      }}
-      `,
+          query FetchSinglePost($postId: ID!)  {
+              post(id:postId){
+                title
+                content
+                imageUrl
+                creator{
+                  name
+                }
+                createdAt
+              }}
+              `,
+      variables: {
+        postId: postId,
+      },
     };
     fetch("http://localhost:8080/graphql", {
       method: "POST",
@@ -38,11 +41,9 @@ class SinglePost extends Component {
       },
     })
       .then((res) => {
-       
         return res.json();
       })
       .then((resData) => {
-
         if (resData.errors) {
           throw new Error("Failed to fetch a post");
         }
@@ -51,7 +52,9 @@ class SinglePost extends Component {
           title: resData.data.post.title,
           author: resData.data.post.creator.name,
           image: "http://localhost:3000/" + resData.data.post.imageUrl,
-          date: new Date(resData.data.post.createdAt).toLocaleDateString("en-US"),
+          date: new Date(resData.data.post.createdAt).toLocaleDateString(
+            "en-US"
+          ),
           content: resData.data.post.content,
         });
       })
