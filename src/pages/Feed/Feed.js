@@ -178,11 +178,9 @@ class Feed extends Component {
     });
     const formData = new FormData();
     formData.append("image", postData.image);
-
     if (this.state.editPost) {
       formData.append("oldPath", this.state.editPost.imagePath);
     }
-
     fetch("http://localhost:8080/post-image", {
       method: "PUT",
       headers: {
@@ -193,13 +191,10 @@ class Feed extends Component {
       .then((res) => res.json())
       .then((fileResData) => {
         const imageUrl = fileResData.filePath || "undefined";
-
-        //  mutation UpdateUserStatus($userStatus: String!)
         let graphqlQuery = {
           query: `
-          mutation CreateNewPost($title: String!, $content: String!, $imageUrl: String!){
-            createPost(postInput: {title: $title, content: $content
-          }", imageUrl: $imageUrl}) {
+          mutation CreateNewPost($title: String!, $content: String!, $imageUrl: String!) {
+            createPost(postInput: {title: $title, content: $content, imageUrl: $imageUrl}) {
               _id
               title
               content
@@ -209,19 +204,20 @@ class Feed extends Component {
               }
               createdAt
             }
-          }`,
+          }
+        `,
           variables: {
             title: postData.title,
             content: postData.content,
-            imgeUrl: imageUrl,
+            imageUrl: imageUrl,
           },
         };
 
         if (this.state.editPost) {
           graphqlQuery = {
             query: `
-              mutation UpdatingExistingPost($postId: ID!,$title: String!, $content: String!, $imageUrl: String! ) {
-                updatePost(id: $postId,postInput: {title: $title, content: $content, imageUrl: $imageUrl}) {
+              mutation UpdateExistingPost($postId: ID!, $title: String!, $content: String!, $imageUrl: String!) {
+                updatePost(id: $postId, postInput: {title: $title, content: $content, imageUrl: $imageUrl}) {
                   _id
                   title
                   content
@@ -233,7 +229,7 @@ class Feed extends Component {
                 }
               }
             `,
-            variabbles: {
+            variables: {
               postId: this.state.editPost._id,
               title: postData.title,
               content: postData.content,
@@ -247,6 +243,7 @@ class Feed extends Component {
           body: JSON.stringify(graphqlQuery),
           headers: {
             Authorization: "Bearer " + this.props.token,
+            "Content-Type": "application/json",
           },
         });
       })
@@ -255,18 +252,24 @@ class Feed extends Component {
       })
       .then((resData) => {
         if (resData.errors && resData.errors[0].status === 422) {
-          throw new Error("Validation failed. white creating a post!");
+          throw new Error(
+            "Validation failed. Make sure the email address isn't used yet!"
+          );
         }
         if (resData.errors) {
-          throw new Error("Creating post failed!");
+          throw new Error("User login failed!");
+        }
+        let resDataField = "createPost";
+        if (this.state.editPost) {
+          resDataField = "updatePost";
         }
         const post = {
-          _id: resData.data.createPost._id,
-          title: resData.data.createPost.title,
-          content: resData.data.createPost.content,
-          creator: resData.data.createPost.creator,
-          createdAt: resData.data.createPost.createdAt,
-          imagePath: resData.data.createPost.imageUrl,
+          _id: resData.data[resDataField]._id,
+          title: resData.data[resDataField].title,
+          content: resData.data[resDataField].content,
+          creator: resData.data[resDataField].creator,
+          createdAt: resData.data[resDataField].createdAt,
+          imagePath: resData.data[resDataField].imageUrl,
         };
         this.setState((prevState) => {
           let updatedTotalPosts = prevState.totalPosts;
@@ -278,7 +281,9 @@ class Feed extends Component {
             updatedPosts[postIndex] = post;
           } else {
             updatedTotalPosts++;
-            updatedPosts.pop();
+            if (prevState.posts.length >= 2) {
+              updatedPosts.pop();
+            }
             updatedPosts.unshift(post);
           }
           return {
